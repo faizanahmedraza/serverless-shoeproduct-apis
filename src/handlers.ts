@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import AWS from "aws-sdk";
+import AWS, { DynamoDB } from "aws-sdk";
 import { v4 } from "uuid";
 import * as yup from "yup";
 
@@ -183,15 +183,61 @@ export const deleteShoeProduct = async (
 export const listShoeProduct = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
-  const output = await docClient
-    .scan({
-      TableName: tableName,
-    })
-    .promise();
+  try {
+    const filters = event.queryStringParameters;
+    const { query, pageSize, page, lastEvaluatedKey } = filters || {};
 
-  return {
-    statusCode: 200,
-    headers,
-    body: JSON.stringify(output.Items),
-  };
+    const defaultPageSize = 10;
+    const defaultPage = 1;
+
+    const parsedPageSize = Number(pageSize) || defaultPageSize;
+    const parsedPage = Number(page) || defaultPage;
+
+    // Convert lastEvaluatedKey from a string to a DynamoDB Key object
+    const exclusiveStartKey: DynamoDB.DocumentClient.Key | undefined =
+      parsedPage > 1 && lastEvaluatedKey
+        ? JSON.parse(lastEvaluatedKey)
+        : undefined;
+
+    const params: DynamoDB.DocumentClient.ScanInput = {
+      TableName: tableName,
+      Limit: parsedPageSize,
+      ExclusiveStartKey: exclusiveStartKey,
+    };
+
+    if (query) {
+      params.FilterExpression = 'contains(#attrName1, :query) OR contains(#attrName2, :query)';
+      params.ExpressionAttributeNames = {
+        '#attrName1': 'name',
+        '#attrName2': 'description',
+      };
+      params.ExpressionAttributeValues = {
+        ':query': query,
+      };
+    }
+
+    const output = await docClient.scan(params).promise();
+
+    // Determine if there are more results and construct the LastEvaluatedKey
+    let nextLastEvaluatedKey;
+    if (output.LastEvaluatedKey) {
+      nextLastEvaluatedKey = JSON.stringify(output.LastEvaluatedKey);
+    }
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        items: output.Items,
+        count: output.Count,
+        page: parsedPage,
+        pageSize: parsedPageSize,
+        lastEvaluatedKey: nextLastEvaluatedKey || null,
+      }),
+    };
+  } catch (error) {
+    return handleError(error);
+  }
 };
+
+

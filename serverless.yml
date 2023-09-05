@@ -58,6 +58,9 @@ provider:
 #    - '!exclude-me-dir/**'
 #    - include-me.js
 #    - include-me-dir/**
+	
+package:
+  individually: true
 
 functions:
   createShoeProduct:

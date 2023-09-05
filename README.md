@@ -1,5 +1,5 @@
 # How to Build a Serverless REST API with Node.js, TypeScript, and AWS DynamoDB
-Developing a Serverless REST API utilizing Node.js, TypeScript, AWS DynamoDB, and the Serverless framework(Iaas) to easily deploy it to AWS.
+Developing a Serverless REST API utilizing Node.js, TypeScript, AWS DynamoDB, and the Serverless framework(Iaac) to easily deploy it to AWS.
 
 ## Prerequisites
 
@@ -35,7 +35,7 @@ serverless deploy
 - GET /shoe-products/{uuid} - gets a product by UUID
 - PUT /shoe-products/{uuid} - updates a product by UUID
 - DELETE /shoe-products/{uuid} - deletes a product by UUID
-- GET /shoe-products - gets a list of products
+- GET /shoe-products - gets a list of products with filters and pagination
 
 ## Licence
 
