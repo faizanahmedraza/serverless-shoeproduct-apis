@@ -18,7 +18,10 @@ const schema = yup.object().shape({
 });
 
 class HttpError extends Error {
-  constructor(public statusCode: number, body: Record<string, unknown> = {}) {
+  constructor(
+    public statusCode: number,
+    body: Record<string, unknown> = {},
+  ) {
     super(JSON.stringify(body));
   }
 }
@@ -55,9 +58,7 @@ const handleError = (e: unknown) => {
   throw e;
 };
 
-export const createShoeProduct = async (
-  event: APIGatewayProxyEvent
-): Promise<APIGatewayProxyResult> => {
+export const createShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const reqBody = JSON.parse(event.body as string);
 
@@ -102,13 +103,9 @@ const fetchShoeProductById = async (id: string) => {
   return output.Item;
 };
 
-export const getShoeProduct = async (
-  event: APIGatewayProxyEvent
-): Promise<APIGatewayProxyResult> => {
+export const getShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
-    const product = await fetchShoeProductById(
-      event.pathParameters?.id as string
-    );
+    const product = await fetchShoeProductById(event.pathParameters?.id as string);
 
     return {
       statusCode: 200,
@@ -120,9 +117,7 @@ export const getShoeProduct = async (
   }
 };
 
-export const updateShoeProduct = async (
-  event: APIGatewayProxyEvent
-): Promise<APIGatewayProxyResult> => {
+export const updateShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const id = event.pathParameters?.id as string;
 
@@ -154,9 +149,7 @@ export const updateShoeProduct = async (
   }
 };
 
-export const deleteShoeProduct = async (
-  event: APIGatewayProxyEvent
-): Promise<APIGatewayProxyResult> => {
+export const deleteShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const id = event.pathParameters?.id as string;
 
@@ -180,24 +173,18 @@ export const deleteShoeProduct = async (
   }
 };
 
-export const listShoeProduct = async (
-  event: APIGatewayProxyEvent
-): Promise<APIGatewayProxyResult> => {
+export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const filters = event.queryStringParameters;
-    const { query, pageSize, page, lastEvaluatedKey } = filters || {};
+    const { query, pageSize, nextPageKey } = filters || {};
 
     const defaultPageSize = 10;
-    const defaultPage = 1;
-
     const parsedPageSize = Number(pageSize) || defaultPageSize;
-    const parsedPage = Number(page) || defaultPage;
 
-    // Convert lastEvaluatedKey from a string to a DynamoDB Key object
-    const exclusiveStartKey: DynamoDB.DocumentClient.Key | undefined =
-      parsedPage > 1 && lastEvaluatedKey
-        ? JSON.parse(lastEvaluatedKey)
-        : undefined;
+    // Convert lastEvaluatedKey as nextPageKey from a string to a DynamoDB Key object
+    const exclusiveStartKey: DynamoDB.DocumentClient.Key | undefined = nextPageKey
+      ? JSON.parse(Buffer.from(nextPageKey, "base64").toString())
+      : undefined;
 
     const params: DynamoDB.DocumentClient.ScanInput = {
       TableName: tableName,
@@ -206,13 +193,13 @@ export const listShoeProduct = async (
     };
 
     if (query) {
-      params.FilterExpression = 'contains(#attrName1, :query) OR contains(#attrName2, :query)';
+      params.FilterExpression = "contains(#attrName1, :query) OR contains(#attrName2, :query)";
       params.ExpressionAttributeNames = {
-        '#attrName1': 'name',
-        '#attrName2': 'description',
+        "#attrName1": "name",
+        "#attrName2": "description",
       };
       params.ExpressionAttributeValues = {
-        ':query': query,
+        ":query": query,
       };
     }
 
@@ -221,23 +208,24 @@ export const listShoeProduct = async (
     // Determine if there are more results and construct the LastEvaluatedKey
     let nextLastEvaluatedKey;
     if (output.LastEvaluatedKey) {
-      nextLastEvaluatedKey = JSON.stringify(output.LastEvaluatedKey);
+      nextLastEvaluatedKey = Buffer.from(JSON.stringify(output.LastEvaluatedKey)).toString("base64");
     }
 
+    console.log(output,"===>Query Output")
+    
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         items: output.Items,
-        count: output.Count,
-        page: parsedPage,
-        pageSize: parsedPageSize,
-        lastEvaluatedKey: nextLastEvaluatedKey || null,
+        pagination: {
+          count: output.Items?.length || parsedPageSize,
+          total: output.Count,
+          nextPageKey: nextLastEvaluatedKey || null,
+        },
       }),
     };
   } catch (error) {
     return handleError(error);
   }
 };
-
-
