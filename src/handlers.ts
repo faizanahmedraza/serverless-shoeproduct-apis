@@ -181,15 +181,8 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
     const defaultPageSize = 10;
     const parsedPageSize = Number(pageSize) || defaultPageSize;
 
-    // Convert lastEvaluatedKey as nextPageKey from a string to a DynamoDB Key object
-    const exclusiveStartKey: DynamoDB.DocumentClient.Key | undefined = nextPageKey
-      ? JSON.parse(Buffer.from(nextPageKey, "base64").toString())
-      : undefined;
-
     const params: DynamoDB.DocumentClient.ScanInput = {
       TableName: tableName,
-      Limit: parsedPageSize,
-      ExclusiveStartKey: exclusiveStartKey,
     };
 
     if (query) {
@@ -203,24 +196,30 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
       };
     }
 
-    const output = await docClient.scan(params).promise();
+    const totalCount = await docClient.scan(params).promise();
+
+    params.Limit = parsedPageSize;
+    // Convert lastEvaluatedKey as nextPageKey from a string to a DynamoDB Key object
+    const exclusiveStartKey: DynamoDB.DocumentClient.Key | undefined = nextPageKey
+      ? JSON.parse(Buffer.from(nextPageKey, "base64").toString())
+      : undefined;
+    params.ExclusiveStartKey = exclusiveStartKey;
+    const results = await docClient.scan(params).promise();
 
     // Determine if there are more results and construct the LastEvaluatedKey
     let nextLastEvaluatedKey;
-    if (output.LastEvaluatedKey) {
-      nextLastEvaluatedKey = Buffer.from(JSON.stringify(output.LastEvaluatedKey)).toString("base64");
+    if (results.LastEvaluatedKey) {
+      nextLastEvaluatedKey = Buffer.from(JSON.stringify(results.LastEvaluatedKey)).toString("base64");
     }
 
-    console.log(output,"===>Query Output")
-    
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        items: output.Items,
+        items: results.Items,
         pagination: {
-          count: output.Items?.length || parsedPageSize,
-          total: output.Count,
+          pageSize: parsedPageSize,
+          totalCount: totalCount.Count || 0,
           nextPageKey: nextLastEvaluatedKey || null,
         },
       }),
