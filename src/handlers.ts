@@ -6,15 +6,29 @@ import * as yup from "yup";
 const docClient = new AWS.DynamoDB.DocumentClient();
 const tableName = "ShoeProductsTable";
 const headers = {
-  "content-type": "application/json",
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Headers":
+    "Content-Type,X-Amz-Date,X-Amz-Security-Token,Authorization,X-Api-Key,X-Requested-With,Accept,Access-Control-Allow-Methods,Access-Control-Allow-Origin,Access-Control-Allow-Headers",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "*",
+  "X-Requested-With": "*",
+  "Access-Control-Max-Age": 3000,
+  "Access-Control-Expose-Headers": "ETag",
+  "Access-Control-Allow-Credentials": true,
 };
 
 const schema = yup.object().shape({
-  name: yup.string().required(),
-  description: yup.string().required(),
-  price: yup.number().required(),
+  name: yup.string().max(250).required(),
+  description: yup.string().max(1000).required(),
+  price: yup.number().min(1).max(10000).required().positive().integer(),
   available: yup.bool().required(),
   imageUrl: yup.string().url().required(),
+  company: yup.string().max(100).required(),
+  currency: yup
+    .string()
+    .matches(/^(€|\$)$/)
+    .required(),
+  colors: yup.array().of(yup.string().max(10).matches(/^#/)).required(),
 });
 
 class HttpError extends Error {
@@ -79,7 +93,9 @@ export const createShoeProduct = async (event: APIGatewayProxyEvent): Promise<AP
     return {
       statusCode: 201,
       headers,
-      body: JSON.stringify(product),
+      body: JSON.stringify({
+        data: product,
+      }),
     };
   } catch (e) {
     return handleError(e);
@@ -110,7 +126,9 @@ export const getShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIGa
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(product),
+      body: JSON.stringify({
+        data: product,
+      }),
     };
   } catch (e) {
     return handleError(e);
@@ -142,7 +160,9 @@ export const updateShoeProduct = async (event: APIGatewayProxyEvent): Promise<AP
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(product),
+      body: JSON.stringify({
+        data: product,
+      }),
     };
   } catch (e) {
     return handleError(e);
@@ -166,7 +186,7 @@ export const deleteShoeProduct = async (event: APIGatewayProxyEvent): Promise<AP
 
     return {
       statusCode: 204,
-      body: "",
+      body: JSON.stringify(null),
     };
   } catch (e) {
     return handleError(e);
@@ -216,7 +236,7 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        items: results.Items,
+        data: results.Items,
         pagination: {
           pageSize: parsedPageSize,
           totalCount: totalCount.Count || 0,
