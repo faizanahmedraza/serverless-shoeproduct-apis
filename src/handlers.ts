@@ -238,6 +238,8 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
     const finalCollection = results?.Items?.map((obj: any) => {
       const { avgReviews, reviewsCount, colors, available, media, ...rest } = obj;
       return { ...rest, media: media.shift() };
+    })?.sort((a, b) => {
+      return b.shoeProductID.localeCompare(a.shoeProductID);
     });
 
     return {
