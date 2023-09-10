@@ -20,15 +20,18 @@ const headers = {
 const schema = yup.object().shape({
   name: yup.string().max(250).required(),
   description: yup.string().max(1000).required(),
-  price: yup.number().min(1).max(10000).required().positive().integer(),
+  price: yup.number().min(1).max(10000).required(),
   available: yup.bool().required(),
-  imageUrl: yup.string().url().required(),
+  media: yup.array().of(yup.string().url()).required(),
   company: yup.string().max(100).required(),
   currency: yup
     .string()
     .matches(/^(€|\$)$/)
     .required(),
   colors: yup.array().of(yup.string().max(10).matches(/^#/)).required(),
+  reviewsCount: yup.number().positive().integer().nullable(),
+  avgReviews: yup.number().min(1).max(5).nullable(),
+  featured: yup.bool().nullable(),
 });
 
 class HttpError extends Error {
