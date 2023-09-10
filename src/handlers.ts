@@ -235,11 +235,16 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
       nextLastEvaluatedKey = Buffer.from(JSON.stringify(results.LastEvaluatedKey)).toString("base64");
     }
 
+    const finalCollection = results?.Items?.map((obj: any) => {
+      const { avgReviews, reviewsCount, colors, available, media, ...rest } = obj;
+      return { ...rest, media: media.shift() };
+    });
+
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        data: results.Items,
+        data: finalCollection,
         pagination: {
           pageSize: parsedPageSize,
           totalCount: totalCount.Count || 0,
