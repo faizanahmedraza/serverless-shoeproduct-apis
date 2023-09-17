@@ -252,7 +252,7 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        data: results,
+        data: results.Items,
         pagination: {
           pageSize: parsedPageSize,
           totalCount: totalCount.Count || 0,
