@@ -199,10 +199,7 @@ export const deleteShoeProduct = async (event: APIGatewayProxyEvent): Promise<AP
 export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const filters = event.queryStringParameters;
-    const { query, pageSize, nextPageKey } = filters || {};
-
-    const defaultPageSize = 10;
-    const parsedPageSize = Number(pageSize) || defaultPageSize;
+    const { query, pageSize, nextPageKey, sortBy, sortOrder } = filters || {};
 
     const params: DynamoDB.DocumentClient.ScanInput = {
       TableName: tableName,
@@ -221,6 +218,9 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
 
     const totalCount = await docClient.scan(params).promise();
 
+    const defaultPageSize = 10;
+    const parsedPageSize = Number(pageSize) || defaultPageSize;
+    
     params.Limit = parsedPageSize;
     // Convert lastEvaluatedKey as nextPageKey from a string to a DynamoDB Key object
     const exclusiveStartKey: DynamoDB.DocumentClient.Key | undefined = nextPageKey
@@ -235,18 +235,24 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
       nextLastEvaluatedKey = Buffer.from(JSON.stringify(results.LastEvaluatedKey)).toString("base64");
     }
 
-    const finalCollection = results?.Items?.map((obj: any) => {
-      const { avgReviews, reviewsCount, colors, available, media, ...rest } = obj;
-      return { ...rest, media: media.shift() };
-    })?.sort((a, b) => {
-      return b.shoeProductID.localeCompare(a.shoeProductID);
-    });
+    // Sort the results by either 'shoeProductID' or 'price' based on the query string
+    if (results.Items?.length) {
+      if (sortBy && sortBy.toLowerCase() === "price") {
+        let direction: number = 1;
+        if (sortOrder && sortOrder.toLowerCase() === "desc") {
+          direction = -1;
+        }
+        results.Items.sort((a, b) => direction * ((Number(a.price) || 0) - (Number(b.price) || 0)));
+      } else {
+        results.Items.sort((a, b) => (a.shoeProductID || "").localeCompare(b.shoeProductID || ""));
+      }
+    }
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        data: finalCollection,
+        data: results,
         pagination: {
           pageSize: parsedPageSize,
           totalCount: totalCount.Count || 0,
