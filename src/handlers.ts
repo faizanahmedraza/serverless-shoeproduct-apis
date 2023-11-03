@@ -3,6 +3,8 @@ import AWS, { DynamoDB } from "aws-sdk";
 import { v4 } from "uuid";
 import * as yup from "yup";
 
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
 const docClient = new AWS.DynamoDB.DocumentClient();
 const tableName = "ShoeProductsTable";
 const headers = {
@@ -189,6 +191,7 @@ export const deleteShoeProduct = async (event: APIGatewayProxyEvent): Promise<AP
 
     return {
       statusCode: 204,
+      headers,
       body: JSON.stringify(null),
     };
   } catch (e) {
@@ -220,7 +223,7 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
 
     const defaultPageSize = 10;
     const parsedPageSize = Number(pageSize) || defaultPageSize;
-    
+
     params.Limit = parsedPageSize;
     // Convert lastEvaluatedKey as nextPageKey from a string to a DynamoDB Key object
     const exclusiveStartKey: DynamoDB.DocumentClient.Key | undefined = nextPageKey
@@ -257,6 +260,33 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
           pageSize: parsedPageSize,
           totalCount: totalCount.Count || 0,
           nextPageKey: nextLastEvaluatedKey || null,
+        },
+      }),
+    };
+  } catch (error) {
+    return handleError(error);
+  }
+};
+
+export const createPaymentIntent = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const reqBody = JSON.parse(event.body as string);
+    if(!reqBody.amount) {
+      return handleError('Amount is required and should be greater than 0.');
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      currency: "USD",
+      amount: Number(reqBody.amount) * 100,
+      automatic_payment_methods: { enabled: true },
+    });
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        data: {
+          clientSecret: paymentIntent.client_secret,
         },
       }),
     };

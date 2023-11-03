@@ -96,6 +96,12 @@ functions:
       - httpApi:
           path: /shoe-products
           method: get
+  createPaymentIntent:
+    handler: src/handlers.createPaymentIntent
+    events:
+      - httpApi:
+          path: /create-payment-intent
+          method: post
 
 plugins:
   - serverless-plugin-typescript
