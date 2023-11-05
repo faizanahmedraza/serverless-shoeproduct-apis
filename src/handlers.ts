@@ -51,7 +51,7 @@ const handleError = (e: unknown) => {
       statusCode: 400,
       headers,
       body: JSON.stringify({
-        errors: e.errors,
+        error: e.errors,
       }),
     };
   }
@@ -68,13 +68,21 @@ const handleError = (e: unknown) => {
 
   if (e instanceof HttpError) {
     return {
-      statusCode: e.statusCode || 400,
+      statusCode: e.statusCode || 500,
       headers,
-      body: e.message,
+      body: JSON.stringify({
+        error: e.message,
+      }),
     };
   }
 
-  throw e;
+  return {
+    statusCode: 400,
+    headers,
+    body: JSON.stringify({
+      error: e,
+    }),
+  };
 };
 
 export const createShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -271,8 +279,8 @@ export const listShoeProduct = async (event: APIGatewayProxyEvent): Promise<APIG
 export const createPaymentIntent = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const reqBody = JSON.parse(event.body as string);
-    if(!reqBody.amount) {
-      return handleError('Amount is required and should be greater than 0.');
+    if (!reqBody.amount) {
+      return handleError("Amount is required and should be greater than 0.");
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
